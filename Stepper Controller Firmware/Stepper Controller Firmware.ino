@@ -8,6 +8,9 @@ void setup() {
   pinMode(PIN_STP, OUTPUT);
   pinMode(PIN_DIR, OUTPUT);
   pinMode(PIN_SWT, INPUT_PULLUP);
+  
+  digitalWrite(PIN_ENA, HIGH);
+  digitalWrite(PIN_DIR, LOW);
 
   Serial.begin(115200);
 }
