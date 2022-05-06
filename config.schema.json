@@ -34,7 +34,7 @@
           "default": "1000"
         },
         "reverse_direction": {
-          "title": "Option to reverse the spin direction of the motor.",
+          "title": "Reverse the spin direction of the motor.",
           "type": "boolean",
           "default": "false"
         }
