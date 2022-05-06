@@ -62,16 +62,21 @@ class CurtainMotorPlugin implements AccessoryPlugin {
         log.info(`Initiating Curtain Motor`);
 
         this.name = config.name;
-        const port = this.config.port ?? "/dev/ttyACM0";
+        this.config.port ??= "/dev/ttyACM0";
+        this.config.advanced.actuated_height ??= 1000;
+        this.config.advanced.steps_per_mm ??= 6.9;
+        this.config.advanced.baud_rate ??= 9600;
+
         try {
             this.serial = new SerialPort({
-                path: port,
-                baudRate: config.advanced.baud_rate ?? 9600
+                path: this.config.port,
+                baudRate: this.config.advanced.baud_rate,
             });
+            this.serial.setEncoding("utf8");
 
-            log.info(`Connected to ${port}`);
+            log.info(`Connected to ${this.config.port}`);
         } catch (err) {
-            log.error(`Failed to open ${port}:`, err);
+            log.error(`Failed to open ${this.config.port}:`, err);
         }
 
         this.informationService = new hap.Service.AccessoryInformation()
@@ -106,28 +111,31 @@ class CurtainMotorPlugin implements AccessoryPlugin {
 
         // The stepper motor is capped at 1000pps due to the runner here
         setInterval(() => {
-            let delta = this.target_pos_steps - this.state.height_steps;
+            let heightSteps = this.state.height_steps;
+            let delta = this.target_pos_steps - heightSteps;
 
             if (delta > 0) {
                 if (this.state.direction != MotorDirection.Backwards) {
                     this.state.direction = MotorDirection.Backwards;
                     this.serial.write(this.config.advanced.reverse_direction ? "EF" : "EB");
+                    this.serial.read(2);
                 }
                 this.serial.write("S");
-                this.state.height_steps -= 1;
+                this.serial.read(1);
+                this.state.height_steps = heightSteps + 1;
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
                     this.serial.write(this.config.advanced.reverse_direction ? "EB" : "EF");
+                    this.serial.read(2);
                 }
                 this.serial.write("S");
-                this.state.height_steps += 1;
-            } else {
-                // Do nothing
-            }
-            if (Math.abs(delta) <= 1) {
+                this.serial.read(1);
+                this.state.height_steps = heightSteps - 1;
+            } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
                 this.serial.write("D");
+                this.serial.read(1);
                 this.state.direction = MotorDirection.Unknown;
             }
         }, 1);
