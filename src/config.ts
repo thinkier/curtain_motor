@@ -5,6 +5,7 @@ export interface Config extends AccessoryConfig {
     advanced: {
         steps_per_mm: number,
         actuated_height: number,
-        baud_rate: number
+        baud_rate: number,
+        reverse_direction: boolean
     }
 }

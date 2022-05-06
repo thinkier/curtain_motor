@@ -102,17 +102,17 @@ class CurtainMotorPlugin implements AccessoryPlugin {
             if (delta > 0) {
                 if (this.state.direction != MotorDirection.Backwards) {
                     this.state.direction = MotorDirection.Backwards;
-                    this.serial.write("EB");
+                    this.serial.write(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
-                this.state.height_steps -= 1;
                 this.serial.write("S");
+                this.state.height_steps -= 1;
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
-                    this.serial.write("EF");
+                    this.serial.write(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
-                this.state.height_steps += 1;
                 this.serial.write("S");
+                this.state.height_steps += 1;
             } else {
                 // Do nothing
             }
