@@ -117,25 +117,20 @@ class CurtainMotorPlugin implements AccessoryPlugin {
             if (delta > 0) {
                 if (this.state.direction != MotorDirection.Backwards) {
                     this.state.direction = MotorDirection.Backwards;
-                    this.serial.write(this.config.advanced.reverse_direction ? "EF" : "EB");
-                    this.serial.read(2);
+                    this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
-                this.serial.write("S");
-                this.serial.read(1);
+                this.runOnStepper("S");
                 this.state.height_steps = heightSteps + 1;
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
-                    this.serial.write(this.config.advanced.reverse_direction ? "EB" : "EF");
-                    this.serial.read(2);
+                    this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
-                this.serial.write("S");
-                this.serial.read(1);
+                this.runOnStepper("S");
                 this.state.height_steps = heightSteps - 1;
             } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
-                this.serial.write("D");
-                this.serial.read(1);
+                this.runOnStepper("D");
                 this.state.direction = MotorDirection.Unknown;
             }
         }, 1);
@@ -143,18 +138,20 @@ class CurtainMotorPlugin implements AccessoryPlugin {
         log.info("Curtain Motor finished initializing!");
     }
 
-    getServices(): Service[] {
-        return [
-            this.informationService,
-            this.service
-        ];
+    runOnStepper(cmd: string): void {
+        this.serial.write(cmd);
+        let resp = null;
+        while (resp = this.serial.read(cmd.length)) {
+            if (resp) return;
+        }
     }
 
-    stepsToPercentage(steps: number): number {
-        return Math.round(steps * 100 / (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm))
-    }
+    getServices = (): Service[] => [
+        this.informationService,
+        this.service
+    ];
 
-    percentageToSteps(percentage: number): number {
-        return (percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm);
-    }
+    stepsToPercentage = (steps: number): number => Math.round(steps * 100 / (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
+
+    percentageToSteps = (percentage: number): number => (percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm);
 }
