@@ -28,7 +28,7 @@ const MotorDirection = {
 }
 
 class CurtainMotorState {
-    private file_name = "curtain_motor_state.json";
+    private file_name = "/homebridge/curtain_motor_state.json";
     private readonly state = {height_steps: 0};
     public direction = MotorDirection.Unknown;
 
