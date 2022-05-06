@@ -63,12 +63,12 @@ class CurtainMotorPlugin implements AccessoryPlugin {
 
         this.name = config.name;
         const port = this.config.port ?? "/dev/ttyACM0";
-        this.serial = new SerialPort({
-            path: port,
-            baudRate: config.advanced.baud_rate ?? 9600
-        });
         try {
-            this.serial.open();
+            this.serial = new SerialPort({
+                path: port,
+                baudRate: config.advanced.baud_rate ?? 9600
+            });
+
             log.info(`Connected to ${port}`);
         } catch (err) {
             log.error(`Failed to open ${port}:`, err);
