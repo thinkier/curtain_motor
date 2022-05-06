@@ -67,13 +67,12 @@ class CurtainMotorPlugin implements AccessoryPlugin {
             path: port,
             baudRate: config.advanced.baud_rate ?? 9600
         });
-        this.serial.open(err => {
-            if (err) {
-                log.error(`Failed to open ${port}:`, err);
-            } else {
-                log.info(`Connected to ${port}`);
-            }
-        })
+        try {
+            this.serial.open();
+            log.info(`Connected to ${port}`);
+        } catch (err) {
+            log.error(`Failed to open ${port}:`, err);
+        }
 
         this.informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, "ACME Pty Ltd");
