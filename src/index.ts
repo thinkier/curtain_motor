@@ -33,7 +33,10 @@ class CurtainMotorState {
     public direction = MotorDirection.Unknown;
 
     constructor() {
-        this.state = JSON.parse(readFileSync(this.file_name, "utf8"));
+        try {
+            this.state = JSON.parse(readFileSync(this.file_name, "utf8"));
+        } catch (e) {
+        }
     }
 
     get height_steps() {
