@@ -12,13 +12,23 @@ void setup() {
   digitalWrite(PIN_ENA, HIGH);
   digitalWrite(PIN_DIR, LOW);
 
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
+
+int lastSwtState = HIGH;
 
 void loop() {
   char cmd = Serial.read();
   // Active low input switch
-  bool hit = !digitalRead(PIN_SWT);
+  int currentSwtState = digitalRead(PIN_SWT);
+  if (currentSwtState != lastSwtState) {
+    lastSwtState = currentSwtState;
+    if (currentSwtState == LOW) {
+      Serial.write("^");
+    } else {
+      Serial.write("_");
+    }
+  }
 
   switch(cmd) {
     case 'D':
@@ -43,17 +53,8 @@ void loop() {
     case -1:
       delayMicroseconds(1);
     default:
-      if (hit) {
-        Serial.write('X');
-      } else {
-        Serial.write('x');
-      }
       return;
   }
 
-  if (hit) {
-    Serial.write('K');
-  } else {
-    Serial.write('k');
-  }
+  Serial.write('k');
 }
