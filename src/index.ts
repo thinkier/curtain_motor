@@ -56,17 +56,23 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     private readonly service: Service;
 
     constructor(private readonly log: Logging, private readonly config: Config, api: API) {
+        log.info(`Initiating Curtain Motor`);
+
         this.name = config.name;
         this.serial = new SerialPort({
-            path: "/dev/ttyACM0",
+            path: this.config.port,
             baudRate: config.advanced.baud_rate ?? 9600
         });
+        this.serial.open(err => {
+            if (err) {
+                log.error(`Failed to open ${this.config.port}:`, err);
+            } else {
+                log.info(`Connected to ${this.config.port}`);
+            }
+        })
 
         this.informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, "ACME Pty Ltd");
-
-        log.info(`Initiating Curtain Motor`);
-
 
         this.service = new hap.Service.WindowCovering(this.name);
         this.service.getCharacteristic(hap.Characteristic.CurrentPosition)
