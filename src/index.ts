@@ -133,7 +133,7 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                 this.runOnStepper("D");
                 this.state.direction = MotorDirection.Unknown;
             }
-        }, 1);
+        }, 5);
 
         log.info("Curtain Motor finished initializing!");
     }
