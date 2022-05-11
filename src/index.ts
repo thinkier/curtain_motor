@@ -66,7 +66,7 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                     return;
                 }
 
-                callback(HAPStatus.SUCCESS, Math.round(this.stepper_state.current_pos));
+                callback(HAPStatus.SUCCESS, this.stepper_state.current_pos);
             })
         this.service.getCharacteristic(hap.Characteristic.TargetPosition)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
@@ -79,10 +79,8 @@ class CurtainMotorPlugin implements AccessoryPlugin {
             })
             .on(CharacteristicEventTypes.SET, async (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
                 try {
-                    let http_code = await fetch(`${config.base_url}/set_pos`, {
+                    let http_code = await fetch(`${config.base_url}/set_pos/${value}`, {
                         method: "PUT",
-                        headers: {content_type: "application/json"},
-                        body: JSON.stringify({target_pos: value})
                     }).then(x => x.status);
 
                     if (http_code === 200) {
