@@ -47,6 +47,7 @@ void loop() {
       char peek = Serial.peek();
       while(peek == -1) {
         delayMicroseconds(1);
+        peek = Serial.peek();
       }
       if (0x30 <= peek <= 0x39) {
         times <<= Serial.read() - 0x30;
