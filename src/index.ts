@@ -138,13 +138,15 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                     this.state.direction = MotorDirection.Backwards;
                     await this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
-                this.state.height_steps = heightSteps + await this.executeSteps(delta);
+                await this.executeSteps(delta);
+                this.state.height_steps = this.target_pos_steps;
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
                     await this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
-                this.state.height_steps = heightSteps - await this.executeSteps(delta);
+                await this.executeSteps(delta);
+                this.state.height_steps = this.target_pos_steps;
             } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
                 await this.runOnStepper("D");
@@ -158,13 +160,11 @@ class CurtainMotorPlugin implements AccessoryPlugin {
         log.info("Curtain Motor finished initializing!");
     }
 
-    async executeSteps(steps: number): Promise<number> {
+    async executeSteps(steps: number): Promise<void> {
         steps = Math.abs(steps);
 
-        let actualNumberOfSteps = splitSteps(steps)[0];
-        await this.executeStepsLog2(Math.log2(actualNumberOfSteps));
-
-        return actualNumberOfSteps;
+        let stepss = splitSteps(steps);
+        await Promise.all(stepss.map(steps => this.executeStepsLog2(Math.log2(steps))));
     }
 
     async executeStepsLog2(e: number): Promise<void> {
