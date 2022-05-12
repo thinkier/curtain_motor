@@ -1,6 +1,6 @@
 import {
     AccessoryPlugin,
-    API,
+    API, Characteristic,
     CharacteristicEventTypes,
     CharacteristicGetCallback,
     CharacteristicSetCallback,
@@ -11,7 +11,8 @@ import {
     Service
 } from "homebridge";
 import {Config} from "./config";
-import fetch from "node-fetch";
+import {SerialPort} from "serialport";
+import {readFileSync, stat, writeFileSync} from "fs";
 
 let hap: HAP;
 
@@ -20,100 +21,137 @@ export = (api: API) => {
     api.registerAccessory("CurtainMotorPlugin", CurtainMotorPlugin);
 };
 
-
-enum MotorDirection {
-    Downwards = -1,
-    Stationary = 0,
-    Upwards = 1
+const MotorDirection = {
+    Unknown: 0,
+    Backwards: -1,
+    Forwards: 1
 }
 
-interface StepperState {
-    current_pos: number,
-    target_pos: number,
-    state: MotorDirection
+class CurtainMotorState {
+    private file_name = "/homebridge/curtain_motor_state.json";
+    private readonly state = {height_steps: 0};
+    public direction = MotorDirection.Unknown;
+
+    constructor() {
+        try {
+            this.state = JSON.parse(readFileSync(this.file_name, "utf8"));
+        } catch (e) {
+        }
+    }
+
+    get height_steps() {
+        return this.state.height_steps;
+    }
+
+    set height_steps(height_steps: number) {
+        this.state.height_steps = height_steps;
+        writeFileSync(this.file_name, JSON.stringify(this.state));
+    }
 }
 
 class CurtainMotorPlugin implements AccessoryPlugin {
     private readonly name: string;
     private readonly informationService: Service;
-    private stepper_state: StepperState = {
-        current_pos: 0,
-        target_pos: 0,
-        state: MotorDirection.Stationary
-    };
-    private last_state_fetch: number = 0;
+    private readonly serial: SerialPort;
+    private state: CurtainMotorState = new CurtainMotorState();
+    private target_pos_steps: number = this.state.height_steps;
 
     private readonly service: Service;
 
     constructor(private readonly log: Logging, private readonly config: Config, api: API) {
+        log.info(`Initiating Curtain Motor`);
+
+        this.name = config.name;
+        this.config.port ??= "/dev/ttyACM0";
+        this.config.advanced.actuated_height ??= 1000;
+        this.config.advanced.steps_per_mm ??= 6.9;
+        this.config.advanced.baud_rate ??= 9600;
+
+        try {
+            this.serial = new SerialPort({
+                path: this.config.port,
+                baudRate: this.config.advanced.baud_rate,
+            });
+            this.serial.setEncoding("utf8");
+
+            log.info(`Connected to ${this.config.port}`);
+        } catch (err) {
+            log.error(`Failed to open ${this.config.port}:`, err);
+        }
+
         this.informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, "ACME Pty Ltd");
 
-        setInterval(async () => {
-            try {
-                this.stepper_state = await fetch(`${config.base_url}/state`).then(x => x.json());
-                this.last_state_fetch = Date.now();
-            } catch (e) {
-                log.error(`Failed to fetch state for curtain motor ${config.name}:`, e);
-            }
-        }, 2e3);
-
         this.service = new hap.Service.WindowCovering(this.name);
         this.service.getCharacteristic(hap.Characteristic.CurrentPosition)
-            .on(CharacteristicEventTypes.GET, async (callback: CharacteristicGetCallback) => {
-                if (Date.now() - this.last_state_fetch > 10e3) {
-                    callback(HAPStatus.OPERATION_TIMED_OUT);
-                    return;
-                }
-
-                callback(HAPStatus.SUCCESS, Math.round(this.stepper_state.current_pos));
+            .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
+                callback(HAPStatus.SUCCESS, this.stepsToPercentage(this.state.height_steps));
             })
         this.service.getCharacteristic(hap.Characteristic.TargetPosition)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-                if (Date.now() - this.last_state_fetch > 10e3) {
-                    callback(HAPStatus.OPERATION_TIMED_OUT);
-                    return;
-                }
-
-                callback(HAPStatus.SUCCESS, this.stepper_state.target_pos);
+                callback(HAPStatus.SUCCESS, this.stepsToPercentage(this.target_pos_steps));
             })
-            .on(CharacteristicEventTypes.SET, async (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-                try {
-                    let http_code = await fetch(`${config.base_url}/set_pos`, {
-                        method: "PUT",
-                        headers: {content_type: "application/json"},
-                        body: JSON.stringify({target_pos: value})
-                    }).then(x => x.status);
+            .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
+                this.target_pos_steps = this.percentageToSteps(value as number);
 
-                    if (http_code === 200) {
-                        callback(HAPStatus.SUCCESS);
-                    } else {
-                        callback(HAPStatus.RESOURCE_BUSY);
-                    }
-                } catch (e) {
-                    callback(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-                }
+                callback(HAPStatus.SUCCESS);
             });
         this.service.getCharacteristic(hap.Characteristic.PositionState)
             .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-                if (Date.now() - this.last_state_fetch > 10e3) {
-                    callback(HAPStatus.OPERATION_TIMED_OUT);
-                    return;
-                }
-
+                let delta = this.target_pos_steps - this.state.height_steps;
                 let state = hap.Characteristic.PositionState.STOPPED;
-                if (this.stepper_state.state === MotorDirection.Downwards) {
+
+                if (delta > 0) {
                     state = hap.Characteristic.PositionState.INCREASING;
-                } else if (this.stepper_state.state === MotorDirection.Upwards) {
+                } else if (delta < 0) {
                     state = hap.Characteristic.PositionState.DECREASING;
                 }
-
                 callback(HAPStatus.SUCCESS, state);
             });
+
+        // The stepper motor is capped at 1000pps due to the runner here
+        setInterval(() => {
+            let heightSteps = this.state.height_steps;
+            let delta = this.target_pos_steps - heightSteps;
+
+            if (delta > 0) {
+                if (this.state.direction != MotorDirection.Backwards) {
+                    this.state.direction = MotorDirection.Backwards;
+                    this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
+                }
+                this.runOnStepper("S");
+                this.state.height_steps = heightSteps + 1;
+            } else if (delta < 0) {
+                if (this.state.direction != MotorDirection.Forwards) {
+                    this.state.direction = MotorDirection.Forwards;
+                    this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
+                }
+                this.runOnStepper("S");
+                this.state.height_steps = heightSteps - 1;
+            } else if (this.state.direction !== MotorDirection.Unknown) {
+                // Turn off the stepper
+                this.runOnStepper("D");
+                this.state.direction = MotorDirection.Unknown;
+            }
+        }, 5);
+
+        log.info("Curtain Motor finished initializing!");
+    }
+
+    runOnStepper(cmd: string): void {
+        this.serial.write(cmd);
+        let resp = null;
+        while (resp = this.serial.read(cmd.length)) {
+            if (resp) return;
+        }
     }
 
     getServices = (): Service[] => [
         this.informationService,
         this.service
     ];
+
+    stepsToPercentage = (steps: number): number => Math.round(steps * 100 / (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
+
+    percentageToSteps = (percentage: number): number => (percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm);
 }
