@@ -1,6 +1,6 @@
 {
   "name": "homebridge-curtain-stepper",
-  "version": "0.0.13",
+  "version": "0.1.2",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
@@ -19,7 +19,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^16.11",
+    "@types/node": "^16",
     "homebridge": ">=0.2",
     "typescript": "^4.5.5"
   },
