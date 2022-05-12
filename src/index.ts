@@ -191,5 +191,5 @@ class CurtainMotorPlugin implements AccessoryPlugin {
 
     stepsToPercentage = (steps: number): number => Math.round(steps * 100 / (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
 
-    percentageToSteps = (percentage: number): number => (percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm);
+    percentageToSteps = (percentage: number): number => Math.round((percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
 }
