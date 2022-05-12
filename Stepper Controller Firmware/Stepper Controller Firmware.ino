@@ -64,7 +64,8 @@ void loop() {
       break;
     }
     case -1: {
-      delayMicroseconds(10);}
+      delayMicroseconds(10);
+    }
     default: {
       return;
     }
