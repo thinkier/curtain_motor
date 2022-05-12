@@ -1,3 +1,5 @@
+#define PHASE_PER_SECOND 1000
+#define HALF_PHASE_US (500000 / PHASE_PER_SECOND)
 #define PIN_ENA 8
 #define PIN_STP 2
 #define PIN_DIR 5
@@ -13,6 +15,7 @@ void setup() {
   digitalWrite(PIN_DIR, LOW);
 
   Serial.begin(9600);
+  Serial.print("R");
 }
 
 int lastSwtState = HIGH;
@@ -31,30 +34,39 @@ void loop() {
   }
 
   switch(cmd) {
-    case 'D':
+    case 'D': {
       digitalWrite(PIN_ENA, HIGH);
       break;
-    case 'E':
+    }
+    case 'E': {
       digitalWrite(PIN_ENA, LOW);
       break;
-    case 'S':
-      // Minimum time for A4988 is 1us
-      digitalWrite(PIN_STP, HIGH);
-      delayMicroseconds(2);
-      digitalWrite(PIN_STP, LOW);
-      delayMicroseconds(2);
+    }
+    case 'S': {
+      int times = 1;
+      if (0x30 <= Serial.peek() <= 0x39) {
+        times <<= Serial.read() - 0x30;
+      }
+      for(int i = 0; i < times; i++){
+        digitalWrite(PIN_STP, HIGH);
+        delayMicroseconds(HALF_PHASE_US);
+        digitalWrite(PIN_STP, LOW);
+        delayMicroseconds(HALF_PHASE_US);
+      }
       break;
-    case 'F':
+    }
+    case 'F': {
       digitalWrite(PIN_DIR, LOW);
       break;
-    case 'B':
+    }
+    case 'B': {
       digitalWrite(PIN_DIR, HIGH);
-      break;
-    case -1:
-      delayMicroseconds(1);
-    default:
+      break;}
+    case -1: {
+      delayMicroseconds(10);}
+    default: {
       return;
+    }
   }
-
-  Serial.write('k');
+  Serial.print('k');
 }

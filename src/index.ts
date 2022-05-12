@@ -29,22 +29,30 @@ const MotorDirection = {
 
 class CurtainMotorState {
     private file_name = "/homebridge/curtain_motor_state.json";
-    private readonly state = {height_steps: 0};
+    private state: Record<string, { height_steps: number }> = {};
     public direction = MotorDirection.Unknown;
 
-    constructor() {
-        try {
-            this.state = JSON.parse(readFileSync(this.file_name, "utf8"));
-        } catch (e) {
-        }
+    constructor(private readonly name: string) {
+        this.refresh();
+        this.state[name] = {height_steps: 0};
+    }
+
+    private refresh() {
+        this.state = {...JSON.parse(readFileSync(this.file_name, "utf8")), ...this.state};
     }
 
     get height_steps() {
-        return this.state.height_steps;
+        try {
+            this.state[this.name] ??= {height_steps: 0};
+        } catch (e) {
+        }
+
+        return this.state[this.name].height_steps;
     }
 
     set height_steps(height_steps: number) {
-        this.state.height_steps = height_steps;
+        this.state[this.name].height_steps = height_steps;
+        this.refresh();
         writeFileSync(this.file_name, JSON.stringify(this.state));
     }
 }
@@ -53,8 +61,8 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     private readonly name: string;
     private readonly informationService: Service;
     private readonly serial: SerialPort;
-    private state: CurtainMotorState = new CurtainMotorState();
-    private target_pos_steps: number = this.state.height_steps;
+    private state: CurtainMotorState;
+    private target_pos_steps: number;
 
     private readonly service: Service;
 
@@ -62,6 +70,9 @@ class CurtainMotorPlugin implements AccessoryPlugin {
         log.info(`Initiating Curtain Motor`);
 
         this.name = config.name;
+        this.state = new CurtainMotorState(this.name);
+        this.target_pos_steps = this.state.height_steps;
+
         this.config.port ??= "/dev/ttyACM0";
         this.config.advanced.actuated_height ??= 1000;
         this.config.advanced.steps_per_mm ??= 6.9;
@@ -73,8 +84,13 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                 baudRate: this.config.advanced.baud_rate,
             });
             this.serial.setEncoding("utf8");
-
-            log.info(`Connected to ${this.config.port}`);
+            let int = setInterval(() => {
+                if (this.serial.read(1) == 'R') {
+                    log.info(`Serial port ${this.config.port} is ready.`);
+                    clearInterval(int);
+                }
+                log.debug(`Waiting for serial port ${this.config.port} to come online...`)
+            }, 50);
         } catch (err) {
             log.error(`Failed to open ${this.config.port}:`, err);
         }
@@ -109,7 +125,6 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                 callback(HAPStatus.SUCCESS, state);
             });
 
-        // The stepper motor is capped at 1000pps due to the runner here
         setInterval(() => {
             let heightSteps = this.state.height_steps;
             let delta = this.target_pos_steps - heightSteps;
@@ -119,23 +134,41 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                     this.state.direction = MotorDirection.Backwards;
                     this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
-                this.runOnStepper("S");
-                this.state.height_steps = heightSteps + 1;
+                this.state.height_steps = heightSteps + this.executeSteps(delta);
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
                     this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
-                this.runOnStepper("S");
-                this.state.height_steps = heightSteps - 1;
+                this.state.height_steps = heightSteps - this.executeSteps(delta);
             } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
                 this.runOnStepper("D");
                 this.state.direction = MotorDirection.Unknown;
             }
-        }, 5);
+        }, 1);
 
         log.info("Curtain Motor finished initializing!");
+    }
+
+    executeSteps(steps: number): number {
+        steps = Math.abs(steps);
+
+        let actualNumberOfSteps = 1;
+
+        let v = 9;
+        for (let i = 0; i < 10; i++) {
+            if ((actualNumberOfSteps << 1) < steps) {
+                actualNumberOfSteps <<= 1;
+            } else {
+                v = i;
+                break;
+            }
+        }
+
+        this.runOnStepper(`S${v}`);
+
+        return actualNumberOfSteps;
     }
 
     runOnStepper(cmd: string): void {
