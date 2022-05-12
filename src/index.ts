@@ -38,7 +38,11 @@ class CurtainMotorState {
     }
 
     private refresh() {
-        this.state = {...JSON.parse(readFileSync(this.file_name, "utf8")), ...this.state};
+        try {
+            this.state = {...JSON.parse(readFileSync(this.file_name, "utf8")), ...this.state};
+        } catch (e) {
+            // Create the new file silently
+        }
     }
 
     get height_steps() {
