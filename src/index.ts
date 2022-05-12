@@ -172,7 +172,6 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     }
 
     runOnStepper(cmd: string): Promise<void> {
-        this.log.info(`Running on ${this.config.port}:`, cmd);
         this.serial.write(cmd);
 
         return new Promise<void>((res, rej) => {
