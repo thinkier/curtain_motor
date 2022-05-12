@@ -61,7 +61,8 @@ void loop() {
     }
     case 'B': {
       digitalWrite(PIN_DIR, HIGH);
-      break;}
+      break;
+    }
     case -1: {
       delayMicroseconds(10);}
     default: {
