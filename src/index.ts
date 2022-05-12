@@ -176,6 +176,7 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     }
 
     runOnStepper(cmd: string): void {
+        this.log.debug(`Running on ${this.config.port}:`, cmd);
         this.serial.write(cmd);
         let resp = null;
         while (resp = this.serial.read(cmd.length)) {
