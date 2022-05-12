@@ -179,7 +179,8 @@ class CurtainMotorPlugin implements AccessoryPlugin {
         this.log.info(`Running on ${this.config.port}:`, cmd);
         this.serial.write(cmd);
         let resp = null;
-        while (resp = this.serial.read(cmd.length)) {
+        while (true) {
+            resp = this.serial.read(cmd.length);
             if (resp) return;
         }
     }
