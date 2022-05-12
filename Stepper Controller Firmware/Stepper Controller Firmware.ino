@@ -44,9 +44,14 @@ void loop() {
     }
     case 'S': {
       int times = 1;
-      if (0x30 <= Serial.peek() <= 0x39) {
+      char peek = Serial.peek();
+      while(peek == -1) {
+        delayMicroseconds(1);
+      }
+      if (0x30 <= peek <= 0x39) {
         times <<= Serial.read() - 0x30;
       }
+
       for(int i = 0; i < times; i++){
         digitalWrite(PIN_STP, HIGH);
         delayMicroseconds(HALF_PHASE_US);
