@@ -51,6 +51,7 @@ void loop() {
       }
       if (0x30 <= peek <= 0x39) {
         times <<= Serial.read() - 0x30;
+        Serial.write('k');
       }
 
       for(int i = 0; i < times; i++){

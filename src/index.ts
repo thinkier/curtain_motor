@@ -151,7 +151,7 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                 this.state.direction = MotorDirection.Unknown;
             }
 
-            setTimeout(handle, 1);
+            setTimeout(handle, 50);
         };
         setTimeout(handle, 500);
 
@@ -161,21 +161,14 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     async executeSteps(steps: number): Promise<number> {
         steps = Math.abs(steps);
 
-        let actualNumberOfSteps = 1;
-
-        let v = 9;
-        for (let i = 0; i < 10; i++) {
-            if ((actualNumberOfSteps << 1) < steps) {
-                actualNumberOfSteps <<= 1;
-            } else {
-                v = i;
-                break;
-            }
-        }
-
-        await this.runOnStepper(`S${v}`);
+        let actualNumberOfSteps = splitSteps(steps)[0];
+        await this.executeStepsLog2(Math.log2(actualNumberOfSteps));
 
         return actualNumberOfSteps;
+    }
+
+    async executeStepsLog2(e: number): Promise<void> {
+        await this.runOnStepper(`S${e}`);
     }
 
     runOnStepper(cmd: string): Promise<void> {
@@ -206,4 +199,19 @@ class CurtainMotorPlugin implements AccessoryPlugin {
     stepsToPercentage = (steps: number): number => Math.round(steps * 100 / (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
 
     percentageToSteps = (percentage: number): number => Math.round((percentage / 100) * (this.config.advanced.actuated_height * this.config.advanced.steps_per_mm));
+}
+
+function splitSteps(delta: number): number[] {
+    let buf = [];
+    let pos = 0;
+    let stepSize = 1 << 9;
+
+    while (stepSize > 1) {
+        while (pos + stepSize <= delta) {
+            pos += stepSize;
+            buf.push(stepSize);
+        }
+        stepSize >>= 1;
+    }
+    return buf;
 }
