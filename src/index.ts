@@ -34,7 +34,7 @@ class CurtainMotorState {
 
     constructor(private readonly name: string) {
         this.refresh();
-        this.state[name] = {height_steps: 0};
+        this.state[name] ??= {height_steps: 0};
     }
 
     private refresh() {
