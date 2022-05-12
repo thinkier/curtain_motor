@@ -1,6 +1,6 @@
 import {
     AccessoryPlugin,
-    API, Characteristic,
+    API,
     CharacteristicEventTypes,
     CharacteristicGetCallback,
     CharacteristicSetCallback,
@@ -12,7 +12,7 @@ import {
 } from "homebridge";
 import {Config} from "./config";
 import {SerialPort} from "serialport";
-import {readFileSync, stat, writeFileSync} from "fs";
+import {readFileSync, writeFileSync} from "fs";
 
 let hap: HAP;
 
@@ -129,33 +129,36 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                 callback(HAPStatus.SUCCESS, state);
             });
 
-        setInterval(() => {
+        const handle = async () => {
             let heightSteps = this.state.height_steps;
             let delta = this.target_pos_steps - heightSteps;
 
             if (delta > 0) {
                 if (this.state.direction != MotorDirection.Backwards) {
                     this.state.direction = MotorDirection.Backwards;
-                    this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
+                    await this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
-                this.state.height_steps = heightSteps + this.executeSteps(delta);
+                this.state.height_steps = heightSteps + await this.executeSteps(delta);
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
-                    this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
+                    await this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
-                this.state.height_steps = heightSteps - this.executeSteps(delta);
+                this.state.height_steps = heightSteps - await this.executeSteps(delta);
             } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
-                this.runOnStepper("D");
+                await this.runOnStepper("D");
                 this.state.direction = MotorDirection.Unknown;
             }
-        }, 1);
+
+            setTimeout(handle, 1);
+        };
+        setTimeout(handle, 500);
 
         log.info("Curtain Motor finished initializing!");
     }
 
-    executeSteps(steps: number): number {
+    async executeSteps(steps: number): Promise<number> {
         steps = Math.abs(steps);
 
         let actualNumberOfSteps = 1;
@@ -170,19 +173,29 @@ class CurtainMotorPlugin implements AccessoryPlugin {
             }
         }
 
-        this.runOnStepper(`S${v}`);
+        await this.runOnStepper(`S${v}`);
 
         return actualNumberOfSteps;
     }
 
-    runOnStepper(cmd: string): void {
+    runOnStepper(cmd: string): Promise<void> {
         this.log.info(`Running on ${this.config.port}:`, cmd);
         this.serial.write(cmd);
-        let resp = null;
-        while (true) {
-            resp = this.serial.read(cmd.length);
-            if (resp) return;
-        }
+
+        return new Promise<void>((res, rej) => {
+            let int = setInterval(() => {
+                let bytes = this.serial.read(cmd.length);
+
+                if (bytes === null) return;
+
+                if (bytes.length == cmd.length) {
+                    clearInterval(int);
+                    res();
+                } else {
+                    rej("EOF");
+                }
+            }, 1);
+        });
     }
 
     getServices = (): Service[] => [
