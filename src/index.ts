@@ -131,7 +131,8 @@ class CurtainMotorPlugin implements AccessoryPlugin {
 
         const handle = async () => {
             let heightSteps = this.state.height_steps;
-            let delta = this.target_pos_steps - heightSteps;
+            let target = this.target_pos_steps;
+            let delta = target - heightSteps;
 
             if (delta > 0) {
                 if (this.state.direction != MotorDirection.Backwards) {
@@ -139,14 +140,14 @@ class CurtainMotorPlugin implements AccessoryPlugin {
                     await this.runOnStepper(this.config.advanced.reverse_direction ? "EF" : "EB");
                 }
                 await this.executeSteps(delta);
-                this.state.height_steps = this.target_pos_steps;
+                this.state.height_steps = target;
             } else if (delta < 0) {
                 if (this.state.direction != MotorDirection.Forwards) {
                     this.state.direction = MotorDirection.Forwards;
                     await this.runOnStepper(this.config.advanced.reverse_direction ? "EB" : "EF");
                 }
                 await this.executeSteps(delta);
-                this.state.height_steps = this.target_pos_steps;
+                this.state.height_steps = target;
             } else if (this.state.direction !== MotorDirection.Unknown) {
                 // Turn off the stepper
                 await this.runOnStepper("D");
