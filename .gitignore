@@ -3,3 +3,5 @@
 node_modules
 *.stl
 *.3mf
+*.gcode
+*.gco
