@@ -2,5 +2,3 @@
 *.iml
 node_modules
 *.stl
-*.gco
-*.gcode

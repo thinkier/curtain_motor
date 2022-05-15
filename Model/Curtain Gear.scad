@@ -16,21 +16,16 @@ shaft_tol = 0.15;
 // Calculations
 gear_r = n_slots * (bead_d + inter_bead_distance) / (2 * PI);
 bead_offset_angle = 360 / n_slots;
-or = gear_r + 6;
-od = or * 2;
-echo(od = od);
+echo(od = (gear_r + 1) * 2);
 echo(gr = gear_r);
 
 module catch() {
-    chord = (PI * od / n_slots) - 2 * tol;
-
     cylinder(bead_d + 2 * tol, bead_r + 2 * tol, bead_r + 2 * tol, $fn = 60);
     linear_extrude(bead_d + 2 * tol)
         polygon([
-                [0, bead_r + 2 * tol],
-                [0, - bead_r - 2 * tol],
-                [bead_r + 5, - chord / 2],
-                [bead_r + 5, chord / 2]
+                [bead_r, - bead_d],
+                [- bead_r, 0],
+                [bead_r, bead_d]
             ]);
 }
 
@@ -50,8 +45,8 @@ module slots() {
 module thread_disk() {
     translate([0, 0, 3]) {
         difference() {
-            cylinder(2, d = od + 1);
-            cylinder(2, r = gear_r - 1);
+            cylinder(2, gear_r + bead_r, gear_r + bead_r);
+            cylinder(2, gear_r - 1, gear_r - 1);
         }
     }
 }
@@ -68,7 +63,7 @@ module shaft() {
 
 module curtain_bead_adaptor() {
     difference() {
-        cylinder(depth, d = od, $fn = 360);
+        cylinder(8, r = gear_r + 1, $fn = 360);
 
         slots();
         thread_disk();
@@ -76,5 +71,5 @@ module curtain_bead_adaptor() {
     }
 }
 
-curtain_bead_adaptor();
-//catch();
+//curtain_bead_adaptor();
+catch();
