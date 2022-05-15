@@ -71,5 +71,4 @@ module curtain_bead_adaptor() {
     }
 }
 
-//curtain_bead_adaptor();
-catch();
+curtain_bead_adaptor();
