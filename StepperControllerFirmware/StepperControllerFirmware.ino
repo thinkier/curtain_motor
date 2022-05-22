@@ -18,21 +18,28 @@ void setup() {
   Serial.print("R");
 }
 
-int lastSwtState = HIGH;
+char dir = 'F';
+char dirLock = 0;
+
+bool endstopCheck() {
+  // Release lock on HIGH (inactive)
+  if (digitalRead(PIN_SWT) == HIGH) {
+    dirLock = 0;
+    return false;
+  }
+
+  if(dirLock != 0) return dir == dirLock;
+  
+  // Active low input switch
+  if (digitalRead(PIN_SWT) == LOW) {
+    dirLock = dir;
+    return true;
+  }
+  return false;
+}
 
 void loop() {
   char cmd = Serial.read();
-  // Active low input switch
-  int currentSwtState = digitalRead(PIN_SWT);
-  if (currentSwtState != lastSwtState) {
-    lastSwtState = currentSwtState;
-    if (currentSwtState == LOW) {
-      Serial.write("^");
-    } else {
-      Serial.write("_");
-    }
-  }
-
   switch(cmd) {
     case 'D': {
       digitalWrite(PIN_ENA, HIGH);
@@ -55,6 +62,8 @@ void loop() {
       }
 
       for(int i = 0; i < times; i++){
+        if(endstopCheck()) break;
+
         digitalWrite(PIN_STP, HIGH);
         delayMicroseconds(HALF_PHASE_US);
         digitalWrite(PIN_STP, LOW);
@@ -64,10 +73,12 @@ void loop() {
     }
     case 'F': {
       digitalWrite(PIN_DIR, LOW);
+      dir = 'F';
       break;
     }
     case 'B': {
       digitalWrite(PIN_DIR, HIGH);
+      dir = 'B';
       break;
     }
     case -1: {
