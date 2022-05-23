@@ -9,16 +9,17 @@ n_slots = 27;
 tol = 0.25;
 
 // Mounting holes configuration
-shaft_d = 8.25;
 shaft_tol = 0.15;
+shaft_d = 8.7;
 //shaft_cut = 0 - shaft_tol;
 shaft_cut = 0;
 
 // https://core-electronics.com.au/attachments/localcontent/pololu-universal-aluminum-mounting-hub-for-8mm-shaft-m3-holes-dimensions_10065ba0dd3.pdf
+mounting_hole_tol = 0.2;
 mounting_holes_n = 6;
-mounting_holes_d = 3 + 2 * shaft_tol;
+mounting_holes_d = 3 + 2 * mounting_hole_tol;
 mounting_holes_radial_dist = 19.05 / 2;
-mounting_holes_cb = 5 + 2 * shaft_tol;
+mounting_holes_cb = 5 + 2 * mounting_hole_tol;
 mounting_holes_cb_depth = 1.5;
 
 // Calculations
